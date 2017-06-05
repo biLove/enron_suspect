@@ -15,16 +15,16 @@ with open("final_project_dataset.pkl", "r") as data_file:
 my_dataset = data_dict
 #print data_dict
 # 计算有多少个数据点 employee_num
+
+
+
+# 计算poi和非poi的个数
 employee_num = 0
 poi_num = 0
 no_poi = 0
 for item in my_dataset:
     temp = my_dataset[item]
     employee_num += 1
-    # 将所有的NaN值都处理成0
-    for sub_item in temp:
-        if temp[sub_item] == 'NaN':
-            temp[sub_item] = 0
     # 计算poi和非poi的个数
     if temp['poi'] != False:
         poi_num += 1
@@ -38,7 +38,7 @@ print 'no_poi',no_poi
 features_sum = []
 for item1 in my_dataset:
     temp = my_dataset[item1]
-    print temp
+    #print temp
     for sub_item in temp:
         features_sum.append(sub_item)
         #print type(temp[sub_item])
@@ -70,6 +70,46 @@ features_sum = ['poi', 'salary', 'to_messages', 'deferral_payments',
 
 
 ### Task 2: Remove outliers
+
+
+# 剔除异常值
+individul_list = []
+for item in my_dataset:
+    individul_list.append(item)
+#print individul_list
+my_dataset.pop("TOTAL", None)
+my_dataset.pop("THE TRAVEL AGENCY IN THE PARK", None)
+my_dataset.pop("LOCKHART EUGENE E", None)
+
+lenthdata = len(my_dataset)
+
+
+# 去掉缺失值超过50%的特征
+feature_remove = []
+for i in range(len(features_sum)):
+    tmp = []
+
+    n = 0
+    for item in my_dataset:
+        sub = my_dataset[item]
+        sub_key = sub[features_sum[i]]
+        tmp.append(sub_key)
+        if sub_key == 'NaN':
+            n += 1
+    #print tmp
+    #print features_sum[i],n
+    if n > lenthdata * 0.5:
+        #print features_sum[i]
+        feature_remove.append(features_sum[i])
+        #print tmp
+
+print feature_remove
+for sub in features_sum:
+    if sub in feature_remove:
+        features_sum.remove(sub)
+print features_sum
+print len(features_sum)
+
 ### Task 3: Create new feature(s)
 ### Store to my_dataset for easy export below.
 
@@ -77,6 +117,10 @@ features_sum = ['poi', 'salary', 'to_messages', 'deferral_payments',
 # 添加新特性：poi_email_percent
 for item in my_dataset:
     temp = my_dataset[item]
+    if temp['to_messages'] == 'NaN':
+        temp['to_messages'] = 0
+    if temp['from_messages'] == 'NaN':
+        temp['from_messages'] = 0
     total_email = temp['to_messages'] + temp['from_messages']
     poi_email = temp["from_poi_to_this_person"] + temp["from_this_person_to_poi"]
 
@@ -89,7 +133,7 @@ features_sum.append("poi_email_percent")
 print features_sum
 #print my_dataset
 
-
+'''
 # 进行特征缩放
 #for item in my_dataset:
 for i in range(1, len(features_sum), 1):
@@ -104,6 +148,7 @@ for i in range(1, len(features_sum), 1):
         temp = my_dataset[item][features_sum[i]]
         my_dataset[item][features_sum[i]] = float(temp - tmp_min)/(tmp_max-tmp_min)
 #print my_dataset
+'''
 
 ### Extract features and labels from dataset for local testing
 data = featureFormat(my_dataset, features_sum, sort_keys = True)
