@@ -7,6 +7,7 @@ sys.path.append("../tools/")
 
 from feature_format import featureFormat, targetFeatureSplit
 from tester import dump_classifier_and_data
+from tester import test_classifier
 
 ### Load the dictionary containing the dataset
 with open("final_project_dataset.pkl", "r") as data_file:
@@ -19,12 +20,11 @@ my_dataset = data_dict
 
 
 # 计算poi和非poi的个数
-employee_num = 0
+employee_num = len(my_dataset)
 poi_num = 0
 no_poi = 0
 for item in my_dataset:
     temp = my_dataset[item]
-    employee_num += 1
     # 计算poi和非poi的个数
     if temp['poi'] != False:
         poi_num += 1
@@ -43,10 +43,10 @@ for item1 in my_dataset:
         features_sum.append(sub_item)
         #print type(temp[sub_item])
     break
-#print features_sum
+print features_sum
 print len(features_sum)
 
-# 移除不需要的特征email_address，由于特征poi必须排在第一位，故调整一下poi的顺序如下：
+# 移除不需要的特征 email_address，由于特征poi必须排在第一位，故调整一下poi的顺序如下：
 features_sum.remove('email_address')
 features_sum.remove('poi')
 features_sum.insert(0, 'poi')
@@ -68,27 +68,11 @@ features_sum = ['poi', 'salary', 'to_messages', 'deferral_payments',
 ### The first feature must be "poi".
 
 
-
-### Task 2: Remove outliers
-
-
-# 剔除异常值
-individul_list = []
-for item in my_dataset:
-    individul_list.append(item)
-#print individul_list
-my_dataset.pop("TOTAL", None)
-my_dataset.pop("THE TRAVEL AGENCY IN THE PARK", None)
-my_dataset.pop("LOCKHART EUGENE E", None)
-
-lenthdata = len(my_dataset)
-
-
 # 去掉缺失值超过50%的特征
+lenthdata = len(my_dataset)
 feature_remove = []
 for i in range(len(features_sum)):
     tmp = []
-
     n = 0
     for item in my_dataset:
         sub = my_dataset[item]
@@ -96,19 +80,58 @@ for i in range(len(features_sum)):
         tmp.append(sub_key)
         if sub_key == 'NaN':
             n += 1
-    #print tmp
-    #print features_sum[i],n
     if n > lenthdata * 0.5:
         #print features_sum[i]
         feature_remove.append(features_sum[i])
         #print tmp
 
-print feature_remove
+features_new = []
 for sub in features_sum:
-    if sub in feature_remove:
-        features_sum.remove(sub)
-print features_sum
-print len(features_sum)
+    if sub not in feature_remove:
+        features_new.append(sub)
+print features_new
+print len(features_new)
+
+features_sum = features_new
+
+# 从my_dataset 里面去掉上述特征
+new_data = {}
+for item in my_dataset:
+    new_data[item] = {}
+    temp = my_dataset[item]
+    for sub_item in temp:
+        if sub_item in features_sum:
+            new_data[item][sub_item] = temp[sub_item]
+
+#print my_dataset['METTS MARK']
+#print new_data['METTS MARK']
+
+my_dataset = new_data
+
+### Task 2: Remove outliers
+
+# 剔除异常值
+individul_list = []
+for item in my_dataset:
+    individul_list.append(item)
+    sub_list = []
+    temp = my_dataset[item]
+    n = 0
+    for sub_item in temp:
+        sub_list.append(temp[sub_item])
+        if temp[sub_item] == 'NaN':
+            n += 1
+    if n > len(temp) * 0.8:
+        print item
+        #print item
+
+#print individul_list
+my_dataset.pop("TOTAL", None)
+my_dataset.pop("THE TRAVEL AGENCY IN THE PARK", None)
+my_dataset.pop("LOCKHART EUGENE E", None)
+
+
+
 
 ### Task 3: Create new feature(s)
 ### Store to my_dataset for easy export below.
@@ -131,24 +154,36 @@ for item in my_dataset:
 #print my_dataset
 features_sum.append("poi_email_percent")
 print features_sum
-#print my_dataset
 
-'''
+
+# 特征选择
+# 由于 新特征 poi_email_percent，特征 from_this_person_to_poi 和 from_poi_to_this_person 使用了
+#已知的poi信息，故不放在最终的特征集中，可将这3个特征从特征集中去掉。
+features_sum.remove('poi_email_percent')
+features_sum.remove('from_this_person_to_poi')
+features_sum.remove('from_poi_to_this_person')
+
+print features_sum
+
+
 # 进行特征缩放
 #for item in my_dataset:
 for i in range(1, len(features_sum), 1):
     tmp = []
     for item in my_dataset:
         temp = my_dataset[item]
-        tmp.append(temp[features_sum[i]])
+        sub_item = temp[features_sum[i]]
+        if sub_item != 'NaN':
+            tmp.append(sub_item)
     tmp_max = max(tmp)
     tmp_min = min(tmp)
     print tmp_max,tmp_min
     for item in my_dataset:
         temp = my_dataset[item][features_sum[i]]
-        my_dataset[item][features_sum[i]] = float(temp - tmp_min)/(tmp_max-tmp_min)
+        if temp != 'NaN':
+            my_dataset[item][features_sum[i]] = float(temp - tmp_min)/(tmp_max-tmp_min)
 #print my_dataset
-'''
+
 
 ### Extract features and labels from dataset for local testing
 data = featureFormat(my_dataset, features_sum, sort_keys = True)
@@ -161,8 +196,10 @@ from sklearn.feature_selection import SelectKBest
 select = SelectKBest(k= 5)
 select.fit_transform(features, labels)
 select_score = select.scores_
-sort_select = sorted(select_score, reverse=True)[:2]
+sort_select = sorted(select_score, reverse=True)[:3]
+print "select_score："
 print select_score
+print "sort_select:"
 print sort_select
 
 features_list_new = ['poi']
@@ -170,10 +207,13 @@ for i in range(len(select_score)):
     if select_score[i] in sort_select:
         features_list_new.append(features_sum[i+1])
 
-print features_list_new
+print "select_features"
+print features_list_new[1:]
 
 #获取features_list
 features_list = features_list_new
+
+print features_list
 
 ### Task 4: Try a varity of classifiers
 ### Please name your classifier clf for easy export below.
@@ -182,15 +222,42 @@ features_list = features_list_new
 ### http://scikit-learn.org/stable/modules/pipeline.html
 
 # Provided to give you a starting point. Try a variety of classifiers.
-#from sklearn.naive_bayes import GaussianNB
-#from sklearn.naive_bayes import MultinomialNB
-#clf = MultinomialNB(alpha = 0.5, fit_prior=False)
+from sklearn.naive_bayes import GaussianNB
+clf = GaussianNB()
 
-from sklearn import svm
-clf = svm.SVC(C=8, gamma=100)
+'''
+# SVMs使用 GradSearchCV 来调参
+from sklearn.model_selection import GridSearchCV
+from sklearn.svm import SVC
+import sklearn.metrics as metrics
 
-#from sklearn import tree
-#clf =tree.DecisionTreeClassifier(min_samples_split=20)
+# clf = SVC(C=1000, gamma=100)
+
+tuned_parameters = [{'kernel': ['rbf'],'gamma': [10,100,1000],
+                     'C': [1, 10, 100, 1000]},
+                    {'kernel': ['linear'], 'C': [1, 10,100,1000]}]
+
+clf = GridSearchCV(SVC(), tuned_parameters, scoring='f1')
+test_classifier(clf, my_dataset, features_list, folds=100)
+
+# def scorer(estimator, X, y):
+#     pred = estimator.predict(X)
+#     precision = metrics.precision_score(y,pred)
+#     recall = metrics.recall_score(y,pred)
+#     return min(precision, recall)
+# clf = GridSearchCV(SVC(), tuned_parameters, scoring=scorer)
+'''
+
+# # Decision Trees使用 GradSearchCV 调参
+# from sklearn.model_selection import GridSearchCV
+# from sklearn import tree
+# # tuned_parameters = {'min_samples_split':[12]}
+# # trees = tree.DecisionTreeClassifier()
+# # clf = GridSearchCV(trees, tuned_parameters, scoring='f1')
+# clf = tree.DecisionTreeClassifier(min_samples_split=12)
+# test_classifier(clf, my_dataset, features_list, folds=100)
+
+
 
 ### Task 5: Tune your classifier to achieve better than .3 precision and recall
 ### using our testing script. Check the tester.py script in the final project
@@ -202,12 +269,9 @@ clf = svm.SVC(C=8, gamma=100)
 # Example starting point. Try investigating other evaluation techniques!
 from sklearn.cross_validation import train_test_split
 features_train, features_test, labels_train, labels_test = \
-    train_test_split(features, labels, test_size=0.3, random_state=42)
+    train_test_split(features, labels, test_size=0.1, random_state=42)
 
-#print features_train
-print labels_train
-clf.fit(features_train, labels_train)
-print clf.score(features_test, labels_test)
+
 
 
 

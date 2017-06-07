@@ -1,8 +1,10 @@
 (lp0
 S'poi'
 p1
-aS'shared_receipt_with_poi'
+aS'exercised_stock_options'
 p2
-aS'poi_email_percent'
+aS'bonus'
 p3
+aS'total_stock_value'
+p4
 a.
